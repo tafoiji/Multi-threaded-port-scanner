@@ -44,7 +44,7 @@ IP::IP(familyType type, std::string addr, unsigned int port)
 bool IP::checkIPv4(std::string addr)
 {
     int cntPoints = 0;
-    if (*addr.begin() == '.' || *addr.rbegin() == '.')
+    if (addr.size() < 2 || *addr.begin() == '.' || *addr.rbegin() == '.')
     {
         return false;
     }
@@ -82,6 +82,11 @@ bool IP::checkIPv4(std::string addr)
         {
             return false;
         }
+
+        if (value > 0xff)
+        {
+            return false;
+        }
     }
 
     return true;
@@ -97,42 +102,112 @@ bool IP::checkIPv6(std::string addr)
         i = toupper(i);
     }
 
+    int cntColons = 0;
     int cntPoints = 0;
-    if (*addr.begin() == ':' || *addr.rbegin() == ':')
-    {
-        return false;
-    }
-
     for (auto& i : addr)
     {
-        cntPoints += (i == ':');
+        cntColons += (i == ':');
+        cntPoints += (i == '.');
     }
 
-    if (cntPoints != 7)
-    {
-        return false;
-    }
-
+    int cntSeq = 0;
     for (int i = 1; i < addr.size(); i++)
     {
-        if (addr[i] == addr[i - 1] && addr[i] == ':')
-        {
-            return false;
-        }
+        cntSeq += (addr[i] == addr[i - 1] && addr[i] == ':');
     }
 
-    int value = 0;
-    for (auto& i : addr)
+    if (cntSeq > 1)
     {
-        if (i == ':' && value >= 0x00 && value <= 0xffff)
+        return false;
+    }
+
+    if (cntSeq == 1 && cntColons > 7)
+    {
+        return false;
+    }
+
+    if (cntSeq == 0 && cntColons != 7)
+    {
+        return false;
+    }
+
+    if (cntPoints != 0 && cntPoints != 3)
+    {
+        return false;
+    }
+    
+    if (cntPoints == 0)
+    {
+        int value = 0;
+        for (auto& i : addr)
         {
-            value = 0;
+            if (i == ':' && value >= 0x00 && value <= 0xffff)
+            {
+                value = 0;
+            }
+            else if (i >= '0' && i <= '9' || i >= 'A' && i <= 'F')
+            {
+                value = value * 16 + translateFromHex.at(i);
+            }
+            else
+            {
+                return false;
+            }
+
+            if (value > 0xffff)
+            {
+                return false;
+            }
         }
-        else if (i >= '0' && i <= '9' || i >= 'A' && i <= 'F')
+    }
+    else
+    {
+        std::string ipv4 = "";
+        std::string ipv6 = "";
+        int indColon;
+        for (indColon = addr.size() - 1; indColon >= 0; indColon--)
         {
-            value = value * 16 + translateFromHex.at(i);
+            if (addr[indColon] == ':')
+            {
+                break;
+            }
         }
-        else
+
+        for (int i = 0; i < addr.size(); i++)
+        {
+            if (i < indColon)
+            {
+                ipv6 += addr[i];
+            }
+            else if (i > indColon)
+            {
+                ipv4 += addr[i];
+            }
+        }
+
+        int value = 0;
+        for (auto& i : ipv6)
+        {
+            if (i == ':' && value >= 0x00 && value <= 0xffff)
+            {
+                value = 0;
+            }
+            else if (i >= '0' && i <= '9' || i >= 'A' && i <= 'F')
+            {
+                value = value * 16 + translateFromHex.at(i);
+            }
+            else
+            {
+                return false;
+            }
+
+            if (value > 0xffff)
+            {
+                return false;
+            }
+        }
+
+        if (!checkIPv4(ipv4))
         {
             return false;
         }

@@ -6,57 +6,105 @@
 #include <windows.h>
 #include <stdexcept>
 #include <fstream>
+#include <algorithm>
 #include "IP.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
+class CheckedPort
+{
+public:
+	bool result;
+	DWORD type;
+	unsigned int port;
+	CheckedPort() : result(false), type(SOCK_STREAM), port(0) {}
+	CheckedPort(bool res, DWORD t, unsigned int port) : result(res), type(t), port(port)
+	{
+		if (t != SOCK_STREAM && t != SOCK_DGRAM)
+		{
+			throw std::invalid_argument("invalid type of protocol");
+		}
+	}
+
+	bool operator< (const CheckedPort& sec)const
+	{
+		if (this->result != sec.result)
+		{
+			return this->result > sec.result;
+		}
+
+		if (this->port != sec.port)
+		{
+			return this->port < sec.port;
+		}
+
+		return this->type < sec.type;
+	}
+};
+
+const DWORD cntThreads = 64;
+
 std::vector<unsigned int> ports;
+std::vector<std::vector<CheckedPort> > checkedPorts(cntThreads);
 
 IP ip;
-const DWORD cntThreads = 8;
 HANDLE userIsDone;
 HANDLE threads[cntThreads];
-
+DWORD PROTOCOL_TYPE = SOCK_STREAM;
 
 DWORD WINAPI socketThread(LPVOID threadID)
 {
 	int id = (int)threadID;
 
-	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+	ADDRESS_FAMILY iprotocol[2] = {AF_INET, AF_INET6};
+	SOCKET sock = socket(iprotocol[ip.getType()], PROTOCOL_TYPE, 0);
 	if (sock == INVALID_SOCKET)
 	{
 		std::cerr << "socket creation is failed\n";
 		closesocket(sock);
-		WSACleanup();
 		return WSAGetLastError();
 	}
 
-	sockaddr_in servInfo;
-	servInfo.sin_family = AF_INET;
-	in_addr ip_to_num;
+	sockaddr_in info4;
+	sockaddr_in6 info6;
+	info4.sin_family = iprotocol[ip.getType()];
+	info6.sin6_family = iprotocol[ip.getType()];
+	in_addr ip4_to_num = in_addr();
+	in6_addr ip6_to_num = in6_addr();
 
-	if (inet_pton(AF_INET, ip.getIP().c_str(), &ip_to_num) <= 0)
+	if (ip.getType() == IP::IPv4 && inet_pton(iprotocol[ip.getType()], ip.getIP().c_str(), &ip4_to_num) <= 0)
 	{
 		std::cerr << "Error in IP translation to special numeric format\n";
 		closesocket(sock);
-		WSACleanup();
 		return WSAGetLastError();
 	}
 
-	servInfo.sin_addr = ip_to_num;
+	if (ip.getType() == IP::IPv6 && inet_pton(iprotocol[ip.getType()], ip.getIP().c_str(), &ip6_to_num) <= 0)
+	{
+		std::cerr << "Error in IP translation to special numeric format\n";
+		closesocket(sock);
+		return WSAGetLastError();
+	}
+
+	info4.sin_addr = ip4_to_num;
+	info6.sin6_addr = ip6_to_num;
 	WaitForSingleObject(userIsDone, INFINITE);
 	for (int i = id; i < ports.size(); i += cntThreads)
 	{
 		unsigned int port = ports[i];
-		servInfo.sin_port = htons(port);
-		if (connect(sock, (sockaddr*)&servInfo, sizeof(servInfo)) == 0)
+		info4.sin_port = htons(port);
+		info6.sin6_port = htons(port);
+		if ((ip.getType() == IP::IPv4 && connect(sock, (sockaddr*)&info4, sizeof(info4)) == 0) || 
+			(ip.getType() == IP::IPv6 && connect(sock, (sockaddr*)&info6, sizeof(info6)) == 0))
 		{
-			
-			std::cout << "Port " << port << " is opened\n";
+			//std::cout << "Port " << port << " is opened\n";
+			checkedPorts[id].push_back(CheckedPort(true, PROTOCOL_TYPE, port));
 		}
 		else
 		{
-			std::cout << "Port " << port << " is not opened\n";
+			//std::cout << "Port " << port << " is not opened\n";
+			//std::cout << WSAGetLastError()<<'\n';
+			checkedPorts[id].push_back(CheckedPort(false, PROTOCOL_TYPE, port));
 		}
 	}
 
@@ -86,6 +134,17 @@ int main()
 	std::string ip_str;
 	getline(std::cin, ip_str);
 
+	try
+	{
+		ip = IP(ip_str);
+		std::cout << ip.getType() << '\n';
+	}
+	catch (const std::invalid_argument ex)
+	{
+		std::cerr << ex.what() << '\n';
+		return -1;
+	}
+
 	for (int i = 0; i < cntThreads; i++)
 	{
 		DWORD id;
@@ -101,16 +160,6 @@ int main()
 
 			return GetLastError();
 		}
-	}
-
-	try 
-	{
-		ip = IP(ip_str);
-	}
-	catch(const std::invalid_argument ex)
-	{
-		std::cerr << ex.what() << '\n';
-		return -1;
 	}
 
 	int t;
@@ -183,8 +232,8 @@ int main()
 
 		break;
 	case 4: 
-		ports.resize(1 << 16);
-		for (int i = 0; i < (1 << 16); i++)
+		ports.resize(1 << 10);
+		for (int i = 0; i < (1 << 10); i++)
 		{
 			ports[i] = i;
 		}
@@ -197,6 +246,24 @@ int main()
 	if (threadStatus >= WAIT_OBJECT_0 && threadStatus <= WAIT_OBJECT_0 + cntThreads - 1)
 	{
 		std::cout << "All ports are checked successfully\n";
+		std::vector<CheckedPort> result(ports.size());
+		int indResult = 0;
+		for (auto& i: checkedPorts)
+		{
+			for (auto& j: i)
+			{
+				result[indResult++] = j;
+			}
+		}
+
+		std::sort(result.begin(), result.end());
+
+		for (auto& i : result)
+		{
+			std::string status[2] = { "CLOSED", "OPENED" };
+			std::string protocolType[2] = {"TCP", "UDP"};
+			std::cout << status[i.result] << ' ' << protocolType[i.type - 1] << ' ' << i.port << '\n';
+		}
 	}
 	else
 	{

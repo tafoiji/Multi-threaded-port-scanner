@@ -21,6 +21,7 @@ public:
 
 	static bool checkIPv4(std::string);
 	static bool checkIPv6(std::string);
+
 	std::string getIP()const;
 	unsigned int getPort()const;
 	familyType getType()const;

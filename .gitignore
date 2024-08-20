@@ -396,3 +396,11 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+
+build-Scanner-Desktop_Qt_5_15_2_MSVC2019_64bit-Debug/
+build-Scanner-Desktop_Qt_5_15_2_MSVC2019_64bit-Release/
+build-Scanner-Desktop_Qt_5_15_2_MinGW_32_bit-Debug/
+build-Scanner-Desktop_Qt_5_15_2_MinGW_64_bit-Debug/
+Scanner/Scanner.cpp
+Scanner/Scanner.h

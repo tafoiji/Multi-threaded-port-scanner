@@ -1,18 +1,18 @@
 #ifndef CHECKEDPORT_H
 #define CHECKEDPORT_H
 
-#include <Windows.h>
 #include <stdexcept>
 
 
 class CheckedPort
 {
 public:
+    enum protocolType {TCP, UDP};
     bool result;
-    DWORD type;
+    protocolType type;
     unsigned int port;
     CheckedPort();
-    CheckedPort(bool res, DWORD t, unsigned int port);
+    explicit CheckedPort(bool res, protocolType t, unsigned int port);
 
     bool operator< (const CheckedPort& sec)const;
 };

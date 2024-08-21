@@ -1,13 +1,15 @@
 #include "checkedport.h"
 
-CheckedPort::CheckedPort(): result(false), type(SOCK_STREAM), port(0) {}
+CheckedPort::CheckedPort(): result(false), type(TCP), port(0) {}
 
-CheckedPort::CheckedPort(bool res, DWORD t, unsigned int port)    : result(res), type(t), port(port)
+CheckedPort::CheckedPort(bool res, protocolType t, unsigned int port)    : result(res), port(port)
 {
-    if (t != SOCK_STREAM && t != SOCK_DGRAM)
+    if (t != TCP && t != UDP)
     {
         throw std::invalid_argument("invalid type of protocol");
     }
+
+    type = t;
 }
 
 bool CheckedPort::operator< (const CheckedPort& sec)const

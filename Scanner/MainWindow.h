@@ -8,20 +8,17 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QLineEdit>
-//#include <Windows.h>
 #include <condition_variable>
 #include <mutex>
 #include <QComboBox>
-#include <WinSock2.h>
-#include <WS2tcpip.h>
 #include <QTableWidget>
 #include <QTableWidgetItem>
+#include <QtNetwork>
 #include "checkedport.h"
 #include "IP.h"
 
 #include <QLabel>
 
-#pragma comment(lib,"user32")
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class Form; };
@@ -34,17 +31,18 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
 private:
     Ui::Form *ui;
 
     QPushButton* btnThreadsCount;
     QSpinBox* threadsCount;
 
-    DWORD cntThreads;
+    unsigned short int cntThreads;
     IP ip;
 
     std::vector<std::thread> threads;
-    std::vector<DWORD> PROTOCOL_TYPE;
+    std::vector<CheckedPort::protocolType> protocols;
 
     QLineEdit* enterIP;
 
@@ -57,33 +55,31 @@ private:
     QComboBox* portsType;
     QComboBox* portsBox;
     QLineEdit* enterPorts;
+    QLineEdit* enterUdpMessage;
     QPushButton* startScanningBtn;
     QLabel* invalidPortsLabel;
 
     void getPorts();
 
-    //HANDLE threadsCountIsDone;
-
-
     bool isStopPushed;
     bool mainThreadIsActive;
 
     QTableWidget* tableWidget;
-public:
 
     std::vector<unsigned int> ports;
     std::vector<std::vector<CheckedPort> > checkedPorts;
-    DWORD getThreadsCount()const;
-    IP getIP()const;
+
     std::condition_variable cv;
     bool userIsDone;
     std::mutex mtx;
     int socketThread(int threadID);
     int mainThread();
-signals:
-    void threadsCountIsDone();
+public:
+    unsigned short int getThreadsCount()const;
+    IP getIP()const;
 public slots:
     void threadsSlot();
+    void showUdpLineEdit(int id);
     void showPortsLineEdit(int id);
     void start();
 protected:

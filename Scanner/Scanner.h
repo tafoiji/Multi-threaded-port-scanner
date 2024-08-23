@@ -1,7 +1,6 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef SCANNER_H
+#define SCANNER_H
 
-//#include <QtWidgets/QMainWindow>
 #include <QMainWindow>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -14,6 +13,7 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QtNetwork>
+#include <atomic>
 #include "checkedport.h"
 #include "IP.h"
 
@@ -61,7 +61,8 @@ private:
 
     void getPorts();
 
-    bool isStopPushed;
+    std::atomic<bool> isStopPushed;
+    std::atomic<bool> isExitPushed;
     bool mainThreadIsActive;
 
     QTableWidget* tableWidget;
@@ -74,6 +75,8 @@ private:
     std::mutex mtx;
     int socketThread(int threadID);
     int mainThread();
+
+    void parseEnteredPorts(const QStringList& stringPorts);
 public:
     unsigned short int getThreadsCount()const;
     IP getIP()const;

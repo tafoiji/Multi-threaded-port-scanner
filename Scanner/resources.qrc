@@ -2,4 +2,7 @@
     <qresource prefix="/icons">
         <file>Port.jpg</file>
     </qresource>
+    <qresource prefix="/files">
+        <file>popular_ports.txt</file>
+    </qresource>
 </RCC>

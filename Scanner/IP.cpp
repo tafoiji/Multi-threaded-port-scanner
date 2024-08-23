@@ -59,7 +59,7 @@ bool IP::checkIPv4(std::string addr)
         return false;
     }
 
-    for (int i = 1; i < addr.size() - 1; i++)
+    for (int i = 1; i < (int)addr.size() - 1; i++)
     {
         if ((addr[i] == addr[i - 1] && addr[i] == '.') || (addr[i - 1] == '.' && addr[i] == '0' && addr[i + 1] != '.'))
         {
@@ -116,7 +116,7 @@ bool IP::checkIPv6(std::string addr)
     }
 
     int cntSeq = 0;
-    for (int i = 1; i < addr.size(); i++)
+    for (int i = 1; i < (int)addr.size(); i++)
     {
         cntSeq += (addr[i] == addr[i - 1] && addr[i] == ':');
     }
@@ -150,7 +150,7 @@ bool IP::checkIPv6(std::string addr)
             {
                 value = 0;
             }
-            else if (i >= '0' && i <= '9' || i >= 'A' && i <= 'F')
+            else if ((i >= '0' && i <= '9') || (i >= 'A' && i <= 'F'))
             {
                 value = value * 16 + translateFromHex.at(i);
             }
@@ -178,7 +178,7 @@ bool IP::checkIPv6(std::string addr)
             }
         }
 
-        for (int i = 0; i < addr.size(); i++)
+        for (int i = 0; i < (int)addr.size(); i++)
         {
             if (i < indColon)
             {
@@ -197,7 +197,7 @@ bool IP::checkIPv6(std::string addr)
             {
                 value = 0;
             }
-            else if (i >= '0' && i <= '9' || i >= 'A' && i <= 'F')
+            else if ((i >= '0' && i <= '9') || (i >= 'A' && i <= 'F'))
             {
                 value = value * 16 + translateFromHex.at(i);
             }

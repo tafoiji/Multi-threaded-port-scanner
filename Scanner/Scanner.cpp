@@ -1,24 +1,29 @@
-#include "MainWindow.h"
-#include "ui_MainWindow.h"
-#include <iostream>
+#include "Scanner.h"
+#include "ui_Scanner.h"
 #include <memory>
 #include <fstream>
-#include <qDebug>
 #include <QCloseEvent>
+#include <QFile>
+#include <QTextStream>
+#include <QDebug>
+#include <QApplication>
+#include <QScreen>
+#include <QHeaderView>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::Form)//, cntThreads(8), checkedPorts(cntThreads), threads(cntThreads)
+    : QMainWindow(parent), ui(new Ui::Form)
 {
     ui->setupUi(this);
     userIsDone = false;
     isStopPushed = false;
+    isExitPushed = false;
     mainThreadIsActive = false;
 
-    this->setWindowTitle("Port Scanner");
-    this->setFixedWidth(300);
-    this->setFixedHeight(200);
+    this->setStyleSheet("QLabel{font-size: 22px} QLineEdit{font-size: 17px} QPushButton{font-size: 22px} QComboBox{font-size: 17px} QSpinBox{font-size: 17px}");
 
-    //QObject::connect(this, SIGNAL(threadsCountIsDone()), this, SLOT(mainThread()));
+    this->setWindowTitle("Port Scanner");
+    this->setFixedWidth(550);
+    this->setFixedHeight(350);
 
     btnThreadsCount = new QPushButton("Submit");
     connect(btnThreadsCount, SIGNAL (pressed()), this, SLOT (threadsSlot()));
@@ -33,7 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
     enterIP->setStyleSheet("QLineEdit { background-color: #353535; border: 1px solid #4F4F4F; border-radius: 5px; padding: 5px; color: white; }");
     enterIP->setPlaceholderText("IP address");
 
-    btnThreadsCount->setStyleSheet("QPushButton { background-color: #5F9EA0; border-radius: 10px; height: 40px; } QPushButton:hover { background-color: #4682B4; }");
+    btnThreadsCount->setStyleSheet("QPushButton { background-color: #5F9EA0; border-radius: 10px; height: 80%; } QPushButton:hover { background-color: #4682B4; }");
 
     QVBoxLayout* layout = new QVBoxLayout();
     layout->addWidget(enterThreadsCountLabel);
@@ -59,8 +64,11 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
     cv.notify_all();
 
-    isStopPushed = true;
-    while (mainThreadIsActive){}
+    isExitPushed = true;
+
+    std::unique_lock<std::mutex> lock(mtx);
+    cv.wait(lock, [this] { return !mainThreadIsActive; });
+
     event->accept();
 }
 
@@ -72,18 +80,30 @@ MainWindow::~MainWindow()
     delete enterThreadsCountLabel;
     delete enterIPLabel;
     delete invalidIPLabel;
-    delete portsTypeLabel;
-    delete portsLabel;
-    delete portsType;
-    delete portsBox;
-    delete enterPorts;
-    delete enterUdpMessage;
-    delete startScanningBtn;
-    delete invalidPortsLabel;
+    if (portsTypeLabel)
+        delete portsTypeLabel;
+    if (portsLabel)
+        delete portsLabel;
+    if (portsType)
+        delete portsType;
+    if (portsBox)
+        delete portsBox;
+    if (enterPorts)
+        delete enterPorts;
+    if (enterUdpMessage)
+        delete enterUdpMessage;
+    if (startScanningBtn)
+        delete startScanningBtn;
+    if (invalidPortsLabel)
+        delete invalidPortsLabel;
 
-    tableWidget->setRowCount(0);
-    tableWidget->setColumnCount(0);
-    delete tableWidget;
+    if (tableWidget)
+    {
+        tableWidget->clear();
+        tableWidget->setRowCount(0);
+        tableWidget->setColumnCount(0);
+        delete tableWidget;
+    }
 }
 
 void MainWindow::threadsSlot()
@@ -111,7 +131,7 @@ void MainWindow::threadsSlot()
     }
     catch (const std::invalid_argument& ex)
     {
-        std::cerr << ex.what() << '\n';
+        //std::cerr << ex.what() << '\n';
         invalidIPLabel->setText(ex.what());
         invalidIPLabel->setStyleSheet("color: red");
     }
@@ -129,10 +149,11 @@ unsigned short int MainWindow::getThreadsCount()const
 
 void MainWindow::getPorts()
 {
-    this->setFixedWidth(450);
-    this->setFixedHeight(650);
+    this->setFixedWidth(550);
+    this->setFixedHeight(750);
 
-    tableWidget = new QTableWidget(this);
+    tableWidget = new QTableWidget();
+
     portsTypeLabel = new QLabel("Choose which type of ports do you want to scan");
     portsType = new QComboBox();
     portsType->setStyleSheet("QComboBox { background-color: #353535; border: 1px solid #4F4F4F; border-radius: 5px; padding: 5px; color: white; }");
@@ -179,6 +200,8 @@ void MainWindow::getPorts()
     layout->addWidget(startScanningBtn);
     layout->addWidget(tableWidget);
 
+    tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
     delete (this->centralWidget()->layout());
     (this->centralWidget())->setLayout(layout);
     layout->setParent(this->centralWidget());
@@ -208,11 +231,36 @@ void MainWindow::showUdpLineEdit(int id)
     }
 }
 
+void MainWindow::parseEnteredPorts(const QStringList& stringPorts)
+{
+    for(auto& i: stringPorts)
+    {
+        if (i.size() == 0)
+        {
+            continue;
+        }
+
+        bool ok = false;
+        int val = i.toInt(&ok);
+        if (!ok && invalidPortsLabel->isHidden())
+        {
+            invalidPortsLabel->show();
+        }
+        else if (ok && val >= 0 && val < (1 << 16))
+        {
+            ports.push_back(val);
+        }
+        else if(invalidPortsLabel->isHidden())
+        {
+            invalidPortsLabel->show();
+        }
+    }
+}
+
 void MainWindow::start()
 {
     tableWidget->setRowCount(0);
     tableWidget->setColumnCount(0);
-
     if (startScanningBtn->text() == "START SCANNING" && mainThreadIsActive)
     {
         startScanningBtn->setText("Stop");
@@ -246,29 +294,13 @@ void MainWindow::start()
     if (portsBox->currentIndex() == 1)
     {
         invalidPortsLabel->setText("invalid ports will be skipped");
-        QStringList stringPorts = enterPorts->text().split(" ");
-        for(auto& i: stringPorts)
-        {
-            bool ok = false;
-            int val = i.toInt(&ok);
-            if (!ok && invalidPortsLabel->isHidden())
-            {
-                invalidPortsLabel->show();
-            }
-            else if (ok && val >= 0 && val < (1 << 16))
-            {
-                ports.push_back(val);
-            }
-            else if(invalidPortsLabel->isHidden())
-            {
-                invalidPortsLabel->show();
-            }
-        }
+        QStringList stringPorts = enterPorts->text().split(' ');
+        parseEnteredPorts(stringPorts);
     }
     else if (portsBox->currentIndex() == 0)
     {
-        std::ifstream popfile("popular_ports.txt");
-        if (!popfile) {
+        QFile popfile(":/files/popular_ports.txt");
+        if (!popfile.exists() || !popfile.open(QIODevice::ReadOnly | QIODevice::Text)) {
             isStopPushed = true;
             startScanningBtn->setText("START SCANNING");
             invalidPortsLabel->setText("Unable to open popular ports file");
@@ -277,18 +309,16 @@ void MainWindow::start()
                 invalidPortsLabel->show();
             }
 
-            std::cerr << "Unable to open popular ports file\n";
+            //std::cerr << "Unable to open popular ports file\n";
             return;
         }
 
-        int x;
-        while (popfile >> x)
-        {
-            ports.push_back(x);
-        }
-
+        QTextStream in(&popfile);
+        QString content = in.readAll();
         popfile.close();
 
+        QStringList stringPorts = content.split(' ');
+        parseEnteredPorts(stringPorts);
     }
     else
     {
@@ -331,9 +361,9 @@ int MainWindow::socketThread(int id)
 
     for (auto protocol: protocols)
     {
-        for (int i = id; i < ports.size(); i += cntThreads)
+        for (int i = id; i < (int)ports.size(); i += cntThreads)
         {
-            if (isStopPushed)
+            if (isStopPushed || isExitPushed)
             {
                 return 0;
             }
@@ -394,7 +424,11 @@ int MainWindow::socketThread(int id)
 
 int MainWindow::mainThread()
 {
-    mainThreadIsActive = true;
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        mainThreadIsActive = true;
+    }
+
     for (auto& i: checkedPorts)
     {
         i.clear();
@@ -410,7 +444,6 @@ int MainWindow::mainThread()
         threads[i].join();
     }
 
-    qDebug() << "ports are checked successfully\n";
     std::vector<CheckedPort> result(ports.size() * protocols.size());
     int indResult = 0;
     for (auto& i: checkedPorts)
@@ -426,6 +459,7 @@ int MainWindow::mainThread()
     tableWidget->setColumnCount(3);
     QStringList headers = {"Type", "Port", "Status"};
     tableWidget->setHorizontalHeaderLabels(headers);
+
     for (auto i = result.begin(); i != result.begin() + indResult; i++)
     {
         QString statusStr[2] = { "CLOSED", "OPENED" };
@@ -446,6 +480,11 @@ int MainWindow::mainThread()
     }
 
     startScanningBtn->setText("START SCANNING");
-    mainThreadIsActive = false;
+
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        mainThreadIsActive = false;
+    }
+    cv.notify_all();
     return 0;
 }

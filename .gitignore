@@ -402,5 +402,12 @@ build-Scanner-Desktop_Qt_5_15_2_MSVC2019_64bit-Debug/
 build-Scanner-Desktop_Qt_5_15_2_MSVC2019_64bit-Release/
 build-Scanner-Desktop_Qt_5_15_2_MinGW_32_bit-Debug/
 build-Scanner-Desktop_Qt_5_15_2_MinGW_64_bit-Debug/
+build-Scanner-Desktop_Qt_5_15_2_MinGW_64_bit-Release/
+
+
 Scanner/Scanner.cpp
 Scanner/Scanner.h
+Scanner/debug
+Scanner/release*
+Scanner/.qmake*
+

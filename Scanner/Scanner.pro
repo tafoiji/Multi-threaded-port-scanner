@@ -3,22 +3,23 @@ QT += network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
+
 CONFIG += c++17
-CONFIG += console
+
 
 SOURCES += \
     IP.cpp \
-    MainWindow.cpp \
+    Scanner.cpp \
     checkedport.cpp \
     main.cpp
 
 HEADERS  += \
     IP.h \
-    MainWindow.h \
+    Scanner.h \
     checkedport.h
 
 FORMS    += \
-    MainWindow.ui
+    Scanner.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

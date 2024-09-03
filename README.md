@@ -5,6 +5,7 @@ This is the application of multi-threaded port scanner. It provides ability to c
 ## Installation
 You can download and execute application by this links in releases:
 
+![image](https://github.com/user-attachments/assets/e16c1be4-e52f-4706-bba8-0750d498b612)
 
 
 *************
@@ -45,7 +46,7 @@ After execution you can see first window. You can choose count of threads(**1-10
 
 If all information is valid application will request information about ports: 
 * Type of ports you want to scan (**TCP, UDP, TCP/UDP**),
-* A message for your UDP endpoint (you need to understand by which protocol endpoint you want to scan is working and send message on which you will get response), if UDP selected,
+* A message for your UDP endpoint (you need to understand, by which protocol, endpoint you want to scan, is working, and send message on which you will get response), if UDP selected,
 * Choosing scanning options:
   * List of popular ports,
   * Your list of ports (you will need to enter them separating by space),
@@ -55,7 +56,7 @@ After that push **START SCANNING** button.
 ![image](https://github.com/user-attachments/assets/68ac4415-8a27-4301-a571-4580ef50dd4c)
 
 Application start to scan ports.
-You can stop scanning in every moment by pushing on **Stop** button and change port information. You can safely exit application in every moment too.
+You can stop scanning at any moment by pushing on **Stop** button and change port information. You can safely exit application at any moment too.
 
 #### Results
 

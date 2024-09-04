@@ -24,15 +24,6 @@ windeployqt release/Scanner.exe
 "release/Scanner.exe"
 ```
 
-in Linux:
-```bash
-qmake
-make
-linuxdeployqt Scanner
-Scanner
-```
-
-
 
 
 
